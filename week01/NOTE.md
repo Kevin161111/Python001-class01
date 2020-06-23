@@ -28,3 +28,22 @@ google 解决办法，尝试 proxy代理池，出现问题，链接不上代理�
 
 尝试 加入 cookies，登录网址有，将请求的 `header` 中 `cookies` 内容复制到代码中，添加到 `header` 中，解决问题。
 
+##### scrapy 反爬
+
+1、`settings.py` 中 添加 `COOKIES_ENABLED = True`
+
+2、添加到爬虫文件中
+```python
+# movies.py
+
+from http.cookies import SimpleCookie
+cookies_fromchrome = '贴进去从 chrome 复制的 cookie'
+
+cookie = SimpleCookie(cookies_fromchrome)
+cookies = {i.key:i.value for i in cookie.values()}
+
+# 将cookies添加到 scrapy.Request中
+    def start_requests(self):
+        yield scrapy.Request(url=self.start_urls[0],callback=self.parse,dont_filter=False,cookies=self.cookies)
+
+```
