@@ -10,10 +10,10 @@ class DoubanPipeline(object):
 
     def process_item(self, item, spider):
         print('*'*100)
-        # print(item['m_id'])
-        # print(item['title'])
-        # print(item['link'])
-        # print(item['content'])
+        print(int(item['m_id']))
+        print(item['title'])
+        print(item['link'])
+        print(item['content'])
 
 
         return item

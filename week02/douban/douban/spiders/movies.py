@@ -46,9 +46,9 @@ class MoviesSpider(scrapy.Spider):
         item = response.meta['item'] 
         content = Selector(response=response).xpath('//div[@id="link-report"]/span/text()')
         item['content'] = content.extract_first().strip()
-        print('-'*100)
-        print(item)
-        print('-'*100)
+        # print('-'*100)
+        # print(item)
+        # print('-'*100)
         yield item
 
 
