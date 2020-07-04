@@ -27,7 +27,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://doc.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-#DOWNLOAD_DELAY = 3
+DOWNLOAD_DELAY = 2
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -74,6 +74,15 @@ HTTP_PROXY_LIST = [
     'https://221.182.31.54:8080',
    
 ]
+
+
+MYSQL_INFO = {
+    'host': 'localhost',
+    'port': 3306,
+    'user': 'root',
+    'password': 'gold2020',
+    'db':'doubanmovies'
+}
 
 # Enable or disable extensions
 # See https://doc.scrapy.org/en/latest/topics/extensions.html
