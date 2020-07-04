@@ -233,7 +233,7 @@ Traceback (most recent call last):
 
 KeyError: 'foo'
 
->>> *from* collections *import* defaultdict
+>>> from collections import defaultdict
 
 >>> b = defaultdict(list)
 
