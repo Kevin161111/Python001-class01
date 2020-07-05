@@ -49,10 +49,11 @@ class DoubanPipeline(object):
         values = (item['m_id'],item['title'],item['link'],item['content'])
         try:
             self.cursor.execute(sql,values)
+            self.db.commit()
+            print('----insert db')
         except Exception as e:
+            self.db.rollback()
             print(e)
-        print('----insert db')
-        self.db.commit()
         return item
 
 
