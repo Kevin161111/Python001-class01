@@ -42,6 +42,9 @@ class Cat(Animal):
         super(Cat,self).__init__(animal_type,shape,character)
         self.name = name
 
+    def __str__(self):
+        return self.name
+
     @property
     def is_good_as_pet(self):
         if self.is_fierce:
@@ -54,12 +57,13 @@ class Zoo:
         self.name = name
         self.animals = []
 
-    def add_animal(self,animal_type):
-        if type(animal_type).__name__ in self.animals:
-            print(f'{type(animal_type).__name__} existed in {self.name}')
+    def add_animal(self,instance):
+        if instance in self.animals:
+            print(f'{type(instance).__name__} existed in {self.name}')
         else:
-            self.animals.append(type(animal_type).__name__)
-            self.__dict__[type(animal_type).__name__] = animal_type
+            self.animals.append(instance.__str__())
+            print(f'{instance} is add to {self.name}')
+            self.__dict__[type(instance).__name__] = instance
 
 if __name__ == '__main__':
     # 实例化动物园
@@ -85,5 +89,5 @@ if __name__ == '__main__':
     # 动物园是否有猫这种动物
     have_cat = getattr(z, 'Cat')
     print(z.animals)
-    a = Animal()
-    print(a)
+    # a = Animal()
+    # print(a)
