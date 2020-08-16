@@ -294,5 +294,191 @@ print(line1(5),line2(5))
 
 #### 8、装饰器
 
-装饰器其实是一种设计模式
+装饰器其实是一种设计模式，不改变原有属性，而是去增加属性。增强而不改变原有函数。
+
+强调函数的定义态而不是运行态，底层是通过闭包实现的。
+
+也就是说 装饰器函数写完，装饰到被装饰器函数上的时候，已经被执行。被装饰器函数在定义的时候就已经被装饰器改变了。
+
+```python
+@decorate
+def target():
+  	print('do something')
+    
+def target():
+  	print('do something')
+target = decorate(target)
+```
+
+#### 9、被装饰函数带参数和返回值的处理
+
+```python
+def outer(func):
+    def inner(a,b):
+        print(f'inner: {func.__name__}')
+        print(a,b)
+        func(a,b)
+    return inner
+
+@outer
+def foo(a,b):
+    print(a+b)
+    print(f'foo: {foo.__name__}')
+    
+    
+foo(1,2)
+foo.__name__
+
+inner:foo
+1 2
+3
+foo: inner
+```
+
+注意这段代码的执行顺序
+
+1. `foo = outer(foo)`
+2. `foo = inner(1,2)`
+3. `print  inner:foo` 
+4. `print 1 2`
+5. `func(a,b) = foo(1,2)`
+6. `print 3`
+7. `print foo.__name__` 即 print inner
+
+被装饰函数带参数的时候，内部函数也要带同样的参数，且传入原有的 foo 的函数 `func(a,b)`
+
+如果是不定长参数，可以将 内部函数和原有参数都改下：
+
+```python
+# 被修饰函数带不定长参数
+def outer2(func):
+    def inner2(*args,**kwargs):
+        func(*args,**kwargs)
+    return inner2
+@outer2
+def foo2(a,b,c):
+    print(a+b+c)
+    
+foo2(1,3,5)
+```
+
+如果被装饰函数带返回值
+
+```python
+def outer3(func):
+    def inner3(*args,**kwargs):
+        ###
+        ret = func(*args,**kwargs) # 将调用函数的返回值接收并返回
+        ###
+        return ret
+    return inner3
+
+@outer3
+def foo3(a,b,c):
+    return (a+b+c)
+    
+print(foo3(1,3,5))
+```
+
+实现装饰器带参数
+
+```python
+def outer_arg(bar):
+    def outer(func):
+        def inner(*args,**kwargs):
+            ret = func(*args,**kwargs)
+            print(bar) #打印装饰器函数的参数
+            return ret
+        return inner
+    return outer
+
+# 相当于outer_arg('foo_arg')(foo)()
+@outer_arg('foo_arg')
+def foo(a,b,c):
+    return (a+b+c)
+    
+print(foo(1,3,5))
+
+```
+
+装饰器也可以堆叠，注意执行的顺序
+
+```python
+@classmethod
+@synchronized(lock)
+def foo(cls):
+    pass
+
+
+def foo(cls):
+    pass
+foo2 = synchronized(lock)(foo)
+foo3 = classmethod(foo2)
+foo = foo3
+```
+
+#### 10、python内置的装饰器
+
+```python
+# 保证被装饰的函数在内部还原回原来的函数
+# functools.wraps
+# @wraps接受一个函数来进行装饰
+# 并加入了复制函数名称、注释文档、参数列表等等的功能
+# 在装饰器里面可以访问在装饰之前的函数的属性
+# @functools.wraps(wrapped, assigned=WRAPPER_ASSIGNMENTS, updated=WRAPPER_UPDATES)
+# 用于在定义包装器函数时发起调用 update_wrapper() 作为函数装饰器。 
+# 它等价于 partial(update_wrapper, wrapped=wrapped, assigned=assigned, updated=updated)。
+
+
+from time import ctime,sleep
+from functools import wraps
+def outer_arg(bar):
+    def outer(func):
+        # 结构不变增加wraps
+        @wraps(func)
+        def inner(*args,**kwargs):
+            print("%s called at %s"%(func.__name__,ctime()))
+            ret = func(*args,**kwargs)
+            print(bar)
+            return ret
+        return inner
+    return outer
+
+@outer_arg('foo_arg')
+def foo(a,b,c):
+    """  __doc__  """
+    return (a+b+c)
+    
+print(foo.__name__)
+
+foo
+```
+
+`functools.wraps`主要是为了保持原函数不要被装饰器内部函数替换
+
+如果不加此装饰器，上面打印的结果就不是 `foo` 而是 `inner`,这就会造成改函数在被其他地方使用的时候造成误解。
+
+`functools.lru_cache`缓存，使用 LRU 算法实现内存缓存和释放
+
+```python
+# functools.lru_cache
+# 《fluent python》的例子
+# functools.lru_cache(maxsize=128, typed=False)有两个可选参数
+# maxsize代表缓存的内存占用值，超过这个值之后，就的结果就会被释放
+# typed若为True，则会把不同的参数类型得到的结果分开保存
+import functools
+@functools.lru_cache()
+def fibonacci(n):
+    if n < 2:
+        return n
+    return fibonacci(n-2) + fibonacci(n-1)
+
+if __name__=='__main__':
+    import timeit
+    print(timeit.timeit("fibonacci(6)", setup="from __main__ import fibonacci"))
+```
+
+
+
+
 

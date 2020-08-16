@@ -42,7 +42,7 @@ print(list(m))
 # 作业三
 import time
 # 方式一
-def timer(func,*args,**kwargs):
+def timer(func):
     def wrapper(*args,**kwargs):
         start = time.time()
         func(*args,**kwargs)
@@ -57,23 +57,3 @@ def test(s):
     time.sleep(s)
 
 test(5)
-
-# 方式二
-from functools import wraps
-def timer2(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.time()
-        func(*args,**kwargs)
-        end = time.time()
-        run_time = end - start
-        print(f'{func.__name__}运行时间: {run_time}')
-
-    return wrapper
-
-@timer
-def test2(a,b,s):
-    time.sleep(s)
-    return a+b
-
-test2(5,6,5)
