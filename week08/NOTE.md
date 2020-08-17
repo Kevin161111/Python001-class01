@@ -1,4 +1,4 @@
-## W8 Note
+## W8 Notes
 
 #### 1、变量赋值
 
@@ -478,7 +478,683 @@ if __name__=='__main__':
     print(timeit.timeit("fibonacci(6)", setup="from __main__ import fibonacci"))
 ```
 
+#### 11、类装饰器
+
+要实现类做装饰器，类中需要实现 `__call__`方法，其余和普通的装饰器函数相同。
+
+好处是，用类做装饰器的话方便传递参数，实现装饰器函数带参数的功能。
+
+```python
+from functools import wraps
+
+class MyClass(object):
+    def __init__(self, var='init_var', *args, **kwargs):
+        self._v = var
+        super(MyClass, self).__init__(*args, **kwargs)
+    
+    def __call__(self, func):
+        # 类的函数装饰器
+        @wraps(func)
+        def wrapped_function(*args, **kwargs):
+            func_name = func.__name__ + " was called"
+            print(func_name)
+            return func(*args, **kwargs)
+        return wrapped_function
+
+def myfunc():
+    pass
+
+MyClass(100)(myfunc)()
+# 其他经常用在类装饰器的python自带装饰器
+# classmethod
+# staticmethod
+# property
+
+
+# 另一个示例
+class Count(object):
+    def __init__(self,func):
+        self._func = func
+        self.num_calls = 0
+    
+    def __call__(self, *args, **kargs):
+        self.num_calls += 1
+        print(f'num of call is {self.num_calls}')
+        return self._func(*args, **kargs)
+
+@Count
+def example():
+    print('hello')
+
+example()
+print(type(example))
+```
+
+装饰器也是可以装饰类的
+
+```python
+# 装饰类
+def decorator(aClass):
+    class newClass(object):
+        def __init__(self, args):
+            self.times = 0
+            self.wrapped = aClass(args)
+            
+        def display(self):
+            # 将runtimes()替换为display()
+            self.times += 1
+            print("run times", self.times)
+            self.wrapped.display()
+    return newClass
+
+@decorator
+class MyClass(object):
+    def __init__(self, number):
+        self.number = number
+    # 重写display
+    def display(self):
+        print("number is",self.number)
+
+six = MyClass(6)
+for i in range(5):
+    six.display()
+```
+
+#### 12、官方文档中的装饰器代码阅读指南
+
+通过阅读官方文档，可以了解版本更新，主要是 PEP 文档的更新。
+
+读懂官方文档，可以了解更新内容的使用场景。
+
+```python
+# 向一个函数添加属性
+def attrs(**kwds):
+    def decorate(f):
+        for k in kwds:
+            setattr(f, k, kwds[k])
+        return f
+    return decorate
+
+@attrs(versionadded="2.2",
+       author="Guido van Rossum")
+def mymethod(f):
+    pass
+
+##############################
+
+# 函数参数观察器
+import functools
+def trace(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        print(f, args, kwargs)
+        result = f(*args, **kwargs)
+        print(result)
+    return decorated_function
+@trace
+def greet(greeting, name):
+    return '{}, {}!'.format(greeting, name)
+
+greet('better','me')
+
+
+############################################
+
+# Python3.7 引入 Data Class  PEP557
+
+class MyClass:
+    def __init__(self, var_a, var_b):
+        self.var_a = var_a
+        self.var_b = var_b
+
+    def __eq__(self, other):
+        if self.__class__ is not other.__class__:
+            return False
+        return (self.var_a, self.var_b) == (other.var_a, other.var_b)
+        
+var3 = MyClass('x','y')
+var4 = MyClass('x','y')
+
+var3 == var4
+
+from dataclasses import dataclass
+@dataclass
+class MyClass:
+    var_a: str # Type Hint 类型提示符
+    var_b: str
+
+var_1 = MyClass('x','y')
+var_2 = MyClass('x','y')
+
+# 不用在类中重新封装 __eq__
+
+var_1 == var_2
+# 存在的问题: var_a var_b不能作为类属性访问
+
+##########################
+
+# 如下的类装饰器实现了一个用于类实例属性的Private声明
+# 属性存储在一个实例上，或者从其一个类继承而来
+# 不接受从装饰的类的外部对这样的属性的获取和修改访问
+# 但是，仍然允许类自身在其方法中自由地访问那些名称
+# 类似于Java中的private属性
+
+traceMe = False
+def trace(*args):
+    if traceMe:
+        print('['+ ' '.join(map(str,args))+ ']')
+
+def Private(*privates):
+    def onDecorator(aClass):
+        class onInstance:
+            def __init__(self,*args,**kargs):
+                self.wrapped = aClass(*args,**kargs)
+            def __getattr__(self,attr):
+                trace('get:',attr)
+                if attr in privates:
+                    raise TypeError('private attribute fetch:'+attr)
+                else:
+                    return getattr(self.wrapped,attr)
+            def __setattr__(self,attr,value):
+                trace('set:',attr,value)
+                if attr == 'wrapped': # 这里捕捉对wrapped的赋值
+                    self.__dict__[attr] = value
+                elif attr in privates:
+                    raise TypeError('private attribute change:'+attr)
+                else: # 这里捕捉对wrapped.attr的赋值
+                    setattr(self.wrapped,attr,value)
+        return onInstance
+    return onDecorator
+
+if __name__ == '__main__':
+    traceMe = True
+
+    @Private('data','size')
+    class Doubler:
+        def __init__(self,label,start):
+            self.label = label
+            self.data = start
+        def size(self):
+            return len(self.data)
+        def double(self):
+            for i in range(self.size()):
+                self.data[i] = self.data[i] * 2
+        def display(self):
+            print('%s => %s'%(self.label,self.data))
+
+    X = Doubler('X is',[1,2,3])
+    Y = Doubler('Y is',[-10,-20,-30])
+    print(X.label)
+    X.display()
+    X.double()
+    X.display()
+    print(Y.label)
+    Y.display()
+    Y.double()
+    Y.label = 'Spam'
+    Y.display()
+
+    # 这些访问都会引发异常
+    print(X.size())
+    print(X.data)
+    X.data = [1,1,1]
+    X.size = lambda S:0
+    print(Y.data)
+    print(Y.size())
+
+# 这个示例运用了装饰器参数等语法，稍微有些复杂，运行结果如下：
+# [set: wrapped <__main__.Doubler object at 0x03421F10>]
+# [set: wrapped <__main__.Doubler object at 0x031B7470>]
+# [get: label]
+# X is
+# [get: display]
+# X is => [1, 2, 3]
+# [get: double]
+# [get: display]
+# X is => [2, 4, 6]
+# [get: label]
+# Y is
+# [get: display]
+# Y is => [-10, -20, -30]
+# [get: double]
+# [set: label Spam]
+# [get: display]
+
+```
 
 
 
+#### 13、对象协议与鸭子类型
 
+对象协议是一种对象之间沟通的语言，我要的东西你有，协议就达成
+
+python 中实现对象协议用的魔术方法。
+
+鸭子方法：如果我能用字典的方式调用你，我认为你就是字典。
+
+定义的对象可以没有最初始化的初始类型的。在运行的过程中也可以改变对象的类型。
+
+常用的魔术方法：
+
+- `__str__`打印对象时，默认输出该方法的返回值。
+- `__getitem_`、`__setitem__`、`__delitem__`、字典索引操作
+- `__iter__`迭代器
+- `__call__`可调用对象协议
+- `__eq__`等于
+- `__gt__`大于
+- `__get__`描述符协议
+- `__set__`属性交互协议
+- `__hash__`可哈希对象
+- `__with__`、`__exit__`实现上下文管理器
+
+自己定义的数据类型尽量模拟原生的数据类型，这样会方法通用，用的人也方便。开发起来更简洁高效。
+
+```python
+class Foo(object):
+    # 用与方法返回
+    def __str__(self):
+        return '__str__ is called'
+
+    # 用于字典操作
+    def __getitem__(self, key):
+        print(f'__getitem__ {key}') 
+    
+    def __setitem__(self, key, value):
+        print(f'__setitem__ {key}, {value}')
+    
+    def __delitem__(self, key):
+        print(f'__delitem__ {key}')
+
+    # 用于迭代
+    def __iter__(self):
+        return iter([i for i in range(5)])
+
+
+# __str__
+bar = Foo()
+print(bar)
+
+# __XXitem__
+bar['key1']
+bar['key1']='value1'
+del bar['key1']
+
+# __iter__
+for i in bar:
+    print(i)
+
+
+```
+
+#### 14、yield
+
+生成器：
+
+1. 在函数中使用 `yield` 关键字，可以实现生成器,如果有 `yield` ，函数被调用后 type 会变成 `<class 'generator'>`
+   1. `(i for i in range(5))` 就是 `generator`
+2. 生成器可以让函数返回可迭代对象
+3. `yield` 和 `return` 不同， `return` 返回后，函数状态终止，`yield` 保持函数的执行状态，返回后，函数回到之前保存的状态继续执行。
+4. 函数被 `yield` 会暂停，局部变量也会被保存
+5. 迭代器终止时，会抛出 `StopIteration` 异常。
+
+|    类型     | 包含内容                                     | 别名       |
+| :---------: | -------------------------------------------- | ---------- |
+| `Iterables` | 包含`__getitem__`或 `__iter__`方法的容器对象 | 可迭代对象 |
+| `iterator`  | 包含 `next()`和 `__iter__`方法               | 迭代器     |
+| `Generator` | 包含 `yield` 语句的函数                      | 生成器     |
+
+结论一：列表是可迭代对象，或称作可迭代 `iterable`，不是迭代器 `iterator`
+
+结论二：只要一个函数的定义中出现了 yield 关键字，则此函数将不再是一个函数，而成为一个 「生成器构造函数」，调用此构造函数即可产生一个生成器对象。
+
+```python
+def check_iterator(obj):
+    if hasattr( obj, '__iter__' ):  
+        if hasattr( obj, '__next__' ):
+            print(f'{obj} is a iterator') # 完整迭代器协议
+        else:
+            print(f'{obj} is a iterable') # 可迭代对象
+    else:
+        print(f'{obj} can not iterable') # 不可迭代
+
+def func1():
+    yield range(5)
+
+check_iterator(func1)
+check_iterator(func1())
+```
+
+#### 15、迭代器使用的注意事项
+
+迭代器会把变量暂存到内存中，并不会节省内存。
+
+实现了迭代器协议，可以用 `next`去调用里面的元素。
+
+```python
+# itertools的三个常见无限迭代器
+import itertools
+
+count = itertools.count()  # 计数器
+next(count)
+next(count)
+next(count)
+
+###############
+cycle = itertools.cycle( ('yes', 'no') ) # 循环遍历
+next(cycle)
+next(cycle)
+next(cycle)
+
+###############
+repeat = itertools.repeat(10, times=2)  # 重复
+next(repeat)
+next(repeat)
+next(repeat)
+
+################
+# 有限迭代器，避免多次循环
+for j in itertools.chain('ABC',[1, 2, 3]) :
+    print(j)
+
+# Python3.3 引入了 yield from 
+# PEP-380
+# 多次循环取出元素
+def chain(*iterables):
+    for it in iterables:
+        for i in it:
+            yield i
+
+s = 'ABC'
+t = [1, 2, 3]
+list(chain(s, t))
+
+def chain2(*iterables):
+    for i in iterables:
+        yield from i   # 替代内层循环
+
+list(chain2(s, t))
+```
+
+**迭代器操作中的注意事项**
+
+```python
+# 迭代器有效性测试
+a_dict = {'a':1, 'b':2}
+a_dict_iter = iter(a_dict) #通过 iter 操作将字典转换为迭代器
+
+next(a_dict_iter)
+
+a_dict['c']=3
+
+next(a_dict_iter)
+# RuntimeError: 字典进行插入操作后，字典迭代器会立即失效
+
+# 尾插入操作不会损坏指向当前元素的List迭代器,列表会自动变长
+
+
+# 迭代器一旦耗尽，永久损坏
+x = iter([ y for y in range(5)])
+# 通过for 操作将 元素都取出来，相当于耗尽
+for i in x:
+    i
+x.__next__()
+```
+
+#### 16、yield 表达式
+
+利用 `yield` 实现输出与输入功能
+
+读代码的时候，在 `yield` 那将程序分上下两部分
+
+```python
+def jumping_range(up_to):
+    index = 0
+    while index < up_to:
+        jump = yield index
+        print(f'jump is {jump}')
+        if jump is None:
+            jump = 1   # next() 或者 send(None)
+        index += jump 
+        print(f'index is {index}')
+
+if __name__ == '__main__':
+    iterator = jumping_range(5)
+    print(next(iterator)) # 0
+    print(iterator.send(2)) # 2 # 这里是将send的值2，赋值给了 jump,并恢复了下半部分程序
+    print(next(iterator)) # 3 # 执行 next 相当于 send(None),此时 jump 为 None,index为3
+    print(iterator.send(-1)) # 2
+    for x in iterator:
+        print(x) # 3, 
+        
+```
+
+`next` 和 `send` 可以实现 `yield`暂时和恢复到下一次暂停。
+
+通过这个功能可以人工控制程序的流程，实现协程。
+
+#### 17、协程简介
+
+协程可以实现 IO密集型高效率操作，执行 IO 操作的时候，与其傻等，不如去执行其他的操作，当得到新的通知说IO 准备就绪了，可以进行读写了，协程再恢复。
+
+这个过程可以用 `yield` 表达式实现。
+
+比较下 `yield` 和 `threading`,协程和线程的区别：
+
+- 协程是异步的，线程是同步的
+- 协程是非抢占式，线程是抢占式
+- 线程是被动调度的，协程是主动调度的
+- 协程可以暂停函数的执行，保留上一次调用的状态，是增强型生成器
+- 协程是用户级的任务调度，线程是内核级的任务调度
+- 协程适用于 IO 密集型程序，不适用于 CPU 密集型程序的处理
+
+##### 异步编程
+
+Python 3.5 版本引入 `await` 取代 `yield from` 方式
+
+```python
+import asyncio
+async def py35_coro()：
+		await stuff()
+```
+
+`await` 结束的对象必须是 `awaitable` 对象
+
+`awaitable` 对象定义了 `__await__`方法
+
+`awaitable` 对象有三类：
+
+1. 协程 `coroutine`
+2. 任务 `Task`
+3. 未来对象 `Future`
+
+##### 事件循环
+
+程序分配了一些事物，或者分配了一些消息的编程框架
+
+当A事件发生的时候去执行B，只有被注册过的函数才能执行回调函数，在python中的IO操作就是注册事件。
+
+`asyncio`只是处理网络服务过程中等对方返回，等待的过程是网络 IO 最重要的瓶颈。
+
+发送请求，注册自己，接收到返回信息，再去找对应回调函数，进行相应的响应。
+
+三个关键点：
+
+1. 注册事件循环
+2. 响应事件
+3. 回调函数
+
+```python
+# python3.4 支持事件循环的方法
+import asyncio
+
+@asyncio.coroutine
+def py34_func():
+    yield from sth()
+
+##################
+# python3.5 增加async await
+async def py35_func():
+    await sth()
+
+# 注意： await 接收的对象必须是awaitable对象
+# awaitable 对象定义了__await__()方法
+# awaitable 对象有三类
+# 1 协程 coroutine
+# 2 任务 Task
+# 3 未来对象 Future
+#####################
+import asyncio
+async def main():
+    print('hello')
+    await asyncio.sleep(3)
+    print('world')
+
+# asyncio.run()运行最高层级的conroutine
+asyncio.run(main())
+# 在 jupyter 中不能这么写，要直接写 await main()
+# hello
+# sleep 3 second
+# world
+
+#################
+# 协程调用过程： 
+# 调用协程时，会被注册到ioloop，返回coroutine对象
+# 用ensure_future 封装为Future对象
+# 提交给ioloop
+
+# 官方文档
+# https://docs.python.org/zh-cn/3/library/asyncio-task.html
+
+```
+
+#### 18、aiohttp简介
+
+`asyncio`更偏向于底层，实际工作多用协程完成 HTTP 请求
+
+可以利用 `aiohttp` 实现客户端和服务端的请求操作。
+
+```python
+# Web Server
+from aiohttp import web
+
+# views
+async def index(request):
+    return web.Response(text='hello aiohttp')
+
+# routes
+def setup_routes(app):
+    app.router.add_get('/', index)
+
+# app
+app = web.Application()
+setup_routes(app)
+web.run_app(app, host='127.0.0.1', port=8080) # 启动程序，将事件循环和注册写到了一起
+
+
+# 官方文档
+# https://hubertroy.gitbooks.io/aiohttp-chinese-documentation/content/aiohttp%E6%96%87%E6%A1%A3/ServerTutorial.html
+```
+
+`aiohttp` 性能很好,超过很多的 异步 http 框架。
+
+```python
+# web client
+
+import aiohttp
+import asyncio
+
+url = 'http://httpbin.org/get' # 单页面
+
+async def fetch(client, url):
+    # get 方式请求url
+    async with client.get(url) as resp: # 相当于 yield
+        assert resp.status == 200 # 等价于 if not resp.status == 200: raise AssertionError()
+        return await resp.text()
+
+async def main():
+    # 获取session对象
+    async with aiohttp.ClientSession() as client: # 产生 session 对象
+        html = await fetch(client, url)
+        print(html)
+
+loop = asyncio.get_event_loop() # 初始化事件循环，空的
+task = loop.create_task(main()) # 添加任务
+loop.run_until_complete(task) # task 将 async main注册成一个任务，并调用
+# Zero-sleep 让底层连接得到关闭的缓冲时间
+loop.run_until_complete(asyncio.sleep(0))
+loop.close()
+
+# 协程调用过程： 
+# 调用协程时，会被注册到ioloop，返回coroutine对象 # 20 行
+# 用ensure_future 封装为Future对象 # 这里没有封装，直接调用了 task 21行，22行
+# 提交给ioloop # 24行
+```
+
+多页面版本
+
+```python
+import aiohttp
+import asyncio
+
+urls = [
+    'http://httpbin.org',
+    'http://httpbin.org/get',
+    'http://httpbin.org/ip',
+    'http://httpbin.org/headers'
+]
+
+async def  crawler():
+    async with aiohttp.ClientSession() as session:
+        futures = map(asyncio.ensure_future, map(session.get, urls))  #封装 futures
+        for task in asyncio.as_completed(futures):
+            print(await task)
+
+if __name__ == "__main__":
+    ioloop = asyncio.get_event_loop()
+    ioloop.run_until_complete(asyncio.ensure_future(crawler())) #相当于启动了4个协程
+    
+   # 协程调用过程： 
+# 调用协程时，会被注册到ioloop，返回coroutine对象 asyncio.get_event_loop()
+# 用ensure_future 封装为Future对象 # 13行 futures = xxx, await task
+# 提交给ioloop  # 19行，ioloop.run_until_complete
+```
+
+协程和多进程配合组成高效的 `web server`
+
+协程在应用层使用，无法跨 cpu 核心，但是进程可以，所以结合起来用
+
+```python
+# 进程池和协程
+
+from multiprocessing import Pool
+import asyncio
+import time
+
+# 可以把 test 改成任意想要的程序
+async def test(time):
+    await asyncio.sleep(time)
+
+async def main(num):
+    start_time = time.time()
+    tasks = [asyncio.create_task(test(1)) for proxy in range(num)]
+    [await t for t in tasks]
+    print(time.time() - start_time)
+
+
+def run(num):
+    asyncio.run(main(num)) # 每一个运行的进程中都跑了协程
+
+
+if __name__ == "__main__":
+    start_time = time.time()
+    p = Pool()
+    for i in range(4):
+        p.apply_async(run, args=(2500,)) # 异步调用 run，带参数
+    p.close()
+    p.join()
+    print(f'total {time.time() - start_time}')
+```
+
+因为在 Cpython 中 GIL 锁的问题，协程不会和多线程结合。
+
+实际一般都是 多进程+协程，或者多进程+多线程的方式。
